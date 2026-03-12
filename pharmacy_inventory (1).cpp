@@ -1,531 +1,304 @@
-/*
- * ============================================================
- *  PHARMACY INVENTORY & EXPIRY MANAGEMENT SYSTEM
- *  Case Study | C++ Implementation
- * ============================================================
- */
-
 #include <iostream>
-#include <vector>
-#include <string>
-#include <iomanip>
-#include <algorithm>
-#include <sstream>
-#include <limits>
-
 using namespace std;
-
-// ─────────────────────────────────────────────
-//  Date Structure
-// ─────────────────────────────────────────────
+ 
 struct Date {
     int day, month, year;
-
-    Date(int d = 1, int m = 1, int y = 2024) : day(d), month(m), year(y) {}
-
-    string toString() const {
-        ostringstream oss;
-        oss << setfill('0') << setw(2) << day << "/"
-            << setw(2) << month << "/" << year;
-        return oss.str();
+    Date(int d=1,int m=1,int y=2024):day(d),month(m),year(y){}
+ 
+    void print() const {
+        if(day<10) cout<<'0'; cout<<day<<'/';
+        if(month<10) cout<<'0'; cout<<month<<'/'<<year;
     }
-
-    bool operator<(const Date& other) const {
-        if (year != other.year) return year < other.year;
-        if (month != other.month) return month < other.month;
-        return day < other.day;
+ 
+    bool operator<(const Date& o) const {
+        if(year!=o.year) return year<o.year;
+        if(month!=o.month) return month<o.month;
+        return day<o.day;
     }
-
-    bool operator==(const Date& other) const {
-        return day == other.day && month == other.month && year == other.year;
-    }
-
-    // Days difference: (this - other). Negative means this is earlier.
-    int daysFrom(const Date& other) const {
-        auto toJulian = [](int d, int m, int y) -> long {
-            int a = (14 - m) / 12;
-            int yy = y + 4800 - a;
-            int mm = m + 12 * a - 3;
-            return d + (153 * mm + 2) / 5 + 365L * yy + yy / 4 - yy / 100 + yy / 400 - 32045;
+ 
+    int daysFrom(const Date& o) const {
+        auto jd=[](int d,int m,int y)->long{
+            int a=(14-m)/12, yy=y+4800-a, mm=m+12*a-3;
+            return d+(153*mm+2)/5+365L*yy+yy/4-yy/100+yy/400-32045;
         };
-        return (int)(toJulian(day, month, year) - toJulian(other.day, other.month, other.year));
+        return (int)(jd(day,month,year)-jd(o.day,o.month,o.year));
     }
 };
+ 
 
-// ─────────────────────────────────────────────
-//  Medicine Class
-// ─────────────────────────────────────────────
-class Medicine {
-private:
-    static int idCounter;
-    int id;
-    string name;
-    string category;       // e.g. Antibiotic, Analgesic, Vitamin
-    string manufacturer;
-    Date   manufactureDate;
-    Date   expiryDate;
-    int    quantity;       // units in stock
-    double pricePerUnit;
-    int    reorderLevel;   // alert when stock falls below this
-
-public:
-    Medicine(string n, string cat, string mfr,
-             Date mfgDate, Date expDate,
-             int qty, double price, int reorder)
-        : id(++idCounter), name(n), category(cat), manufacturer(mfr),
-          manufactureDate(mfgDate), expiryDate(expDate),
-          quantity(qty), pricePerUnit(price), reorderLevel(reorder) {}
-
-    // Getters
-    int         getId()           const { return id; }
-    string      getName()         const { return name; }
-    string      getCategory()     const { return category; }
-    string      getManufacturer() const { return manufacturer; }
-    Date        getExpiryDate()   const { return expiryDate; }
-    int         getQuantity()     const { return quantity; }
-    double      getPrice()        const { return pricePerUnit; }
-    int         getReorderLevel() const { return reorderLevel; }
-
-    void setQuantity(int q)    { quantity = q; }
-    void setPrice(double p)    { pricePerUnit = p; }
-    void setReorder(int r)     { reorderLevel = r; }
-
-    // Check if expired relative to today
-    bool isExpired(const Date& today) const {
-        return expiryDate < today;
+const int SLEN = 64;
+void scopy(char* dst, const char* src) {
+    int i=0; while(src[i]&&i<SLEN-1){dst[i]=src[i];i++;} dst[i]='\0';
+}
+bool scontains(const char* haystack, const char* needle) {
+    // case-insensitive substring search
+    for(int i=0; haystack[i]; i++) {
+        int j=0;
+        while(needle[j] && haystack[i+j] &&
+             (haystack[i+j]|32)==(needle[j]|32)) j++;
+        if(!needle[j]) return true;
     }
-
-    // Days until expiry (negative = already expired)
-    int daysToExpiry(const Date& today) const {
-        return expiryDate.daysFrom(today);
-    }
-
-    bool isLowStock() const {
-        return quantity <= reorderLevel;
-    }
-
-    double totalValue() const {
-        return quantity * pricePerUnit;
-    }
-
-    void display(const Date& today) const {
-        int dte = daysToExpiry(today);
-        string status;
-        if (dte < 0)        status = "*** EXPIRED ***";
-        else if (dte <= 30) status = "!! EXPIRING SOON !!";
-        else if (dte <= 90) status = "Near Expiry";
-        else                status = "OK";
-
-        cout << left
-             << setw(5)  << id
-             << setw(22) << name
-             << setw(14) << category
-             << setw(10) << quantity
-             << setw(14) << expiryDate.toString()
-             << setw(10) << fixed << setprecision(2) << pricePerUnit
-             << setw(20) << status;
-        if (isLowStock()) cout << " [LOW STOCK]";
-        cout << "\n";
+    return false;
+}
+void pad(const char* s, int w) {
+    int len=0; while(s[len]) len++;
+    cout<<s;
+    for(int i=len;i<w;i++) cout<<' ';
+}
+void padInt(int v, int w) {
+    // print integer left-padded to width w
+    char buf[16]; int i=0;
+    if(v<0){buf[i++]='-'; v=-v;}
+    if(v==0){buf[i++]='0';}
+    else{ int tmp=v,digits=0; while(tmp){digits++;tmp/=10;}
+          for(int k=digits-1;k>=0;k--){buf[i+k]='0'+v%10;v/=10;} i+=digits; }
+    buf[i]='\0'; pad(buf,w);
+}
+void padDbl(double v, int w) {
+    int whole=(int)v; int frac=(int)((v-(int)v)*100+0.5);
+    char buf[24]; int i=0;
+    int tmp=whole,digits=0; if(whole==0)digits=1;
+    else while(tmp){digits++;tmp/=10;}
+    for(int k=digits-1;k>=0;k--){buf[i+k]='0'+whole%10;whole/=10;} i+=digits;
+    buf[i++]='.';
+    buf[i++]='0'+frac/10; buf[i++]='0'+frac%10; buf[i]='\0';
+    pad(buf,w);
+}
+ 
+// ── Medicine ──────────────────────────────────────────────────────────
+const int MAX = 50;
+struct Medicine {
+    static int cnt;
+    int id,qty,reorder; double price;
+    char name[SLEN],cat[SLEN],mfr[SLEN];
+    Date mfgD,expD;
+ 
+    Medicine(){}
+    Medicine(const char* n,const char* c,const char* m,Date md,Date ed,int q,double p,int r)
+        :id(++cnt),qty(q),reorder(r),price(p),mfgD(md),expD(ed){ scopy(name,n);scopy(cat,c);scopy(mfr,m); }
+ 
+    bool isExpired(const Date& t)  const { return expD<t; }
+    int  daysToExp(const Date& t)  const { return expD.daysFrom(t); }
+    bool isLowStock()              const { return qty<=reorder; }
+    double totalVal()              const { return qty*price; }
+ 
+    void display(const Date& t) const {
+        int d=daysToExp(t);
+        const char* s = d<0?"*** EXPIRED ***":d<=30?"!! EXPIRING SOON":d<=90?"Near Expiry":"OK";
+        padInt(id,5); pad(name,22); pad(cat,14);
+        padInt(qty,8); expD.print(); cout<<"  "; padDbl(price,10); pad(s,18);
+        if(isLowStock()) cout<<" [LOW STOCK]";
+        cout<<"\n";
     }
 };
-
-int Medicine::idCounter = 0;
-
-// ─────────────────────────────────────────────
-//  Transaction Log
-// ─────────────────────────────────────────────
+int Medicine::cnt=0;
+ 
+// ── Transaction ───────────────────────────────────────────────────────
 struct Transaction {
-    int    medicineId;
-    string medicineName;
-    string type;   // "PURCHASE", "SALE", "DISPOSAL"
-    int    units;
-    double amount;
-    Date   date;
-    string note;
+    int medId,units; double amt; Date date;
+    char medName[SLEN],type[16],note[32];
 };
-
-// ─────────────────────────────────────────────
-//  Pharmacy Class
-// ─────────────────────────────────────────────
-class Pharmacy {
-private:
-    string pharmacyName;
-    vector<Medicine> inventory;
-    vector<Transaction> transactions;
+ 
+// ── Pharmacy ──────────────────────────────────────────────────────────
+struct Pharmacy {
+    char pname[SLEN];
+    Medicine inv[MAX]; int invSz=0;
+    Transaction txn[MAX*4]; int txnSz=0;
     Date today;
-
-    Medicine* findById(int id) {
-        for (auto& m : inventory)
-            if (m.getId() == id) return &m;
-        return nullptr;
+ 
+    Pharmacy(const char* n, Date d){ scopy(pname,n); today=d; }
+ 
+    Medicine* find(int id){ for(int i=0;i<invSz;i++) if(inv[i].id==id) return &inv[i]; return nullptr; }
+ 
+    void hdr(const char* t) const {
+        cout<<"\n"; for(int i=0;i<80;i++) cout<<'='; cout<<"\n  "<<t<<"\n"; for(int i=0;i<80;i++) cout<<'='; cout<<"\n";
     }
-
-    void printHeader(const string& title) const {
-        cout << "\n" << string(90, '=') << "\n";
-        cout << "  " << title << "\n";
-        cout << string(90, '=') << "\n";
+    void colHdr() const {
+        pad("ID",5);pad("Name",22);pad("Category",14);pad("Stock",8);
+        pad("Expiry",16);pad("Price",10);cout<<"Status\n";
+        for(int i=0;i<80;i++) cout<<'-'; cout<<"\n";
     }
-
-    void printTableHeader() const {
-        cout << left
-             << setw(5)  << "ID"
-             << setw(22) << "Medicine Name"
-             << setw(14) << "Category"
-             << setw(10) << "Stock"
-             << setw(14) << "Expiry"
-             << setw(10) << "Price(₹)"
-             << setw(20) << "Status"
-             << "\n"
-             << string(90, '-') << "\n";
+ 
+    void addMed(Medicine m){
+        if(invSz>=MAX){cout<<"[!] Inventory full\n";return;}
+        inv[invSz++]=m;
+        cout<<"[+] '"<<m.name<<"' added (ID "<<m.id<<")\n";
     }
-
-public:
-    Pharmacy(const string& name, Date currentDate)
-        : pharmacyName(name), today(currentDate) {}
-
-    // ── Add Medicine ──────────────────────────
-    void addMedicine(Medicine m) {
-        inventory.push_back(m);
-        cout << "[+] Medicine '" << m.getName()
-             << "' added with ID " << m.getId() << ".\n";
+ 
+    bool restock(int id,int u,double cost){
+        Medicine* m=find(id);
+        if(!m){cout<<"[-] ID "<<id<<" not found\n";return false;}
+        m->qty+=u;
+        Transaction t; t.medId=id; scopy(t.medName,m->name); scopy(t.type,"PURCHASE");
+        t.units=u; t.amt=u*cost; t.date=today; scopy(t.note,"Restock");
+        txn[txnSz++]=t;
+        cout<<"[+] Restocked "<<u<<" units of '"<<m->name<<"'\n"; return true;
     }
-
-    // ── Restock (Purchase) ────────────────────
-    bool restock(int id, int units, double costPerUnit) {
-        Medicine* m = findById(id);
-        if (!m) { cout << "[-] Medicine ID " << id << " not found.\n"; return false; }
-        m->setQuantity(m->getQuantity() + units);
-        Transaction t{id, m->getName(), "PURCHASE", units,
-                      units * costPerUnit, today, "Restock"};
-        transactions.push_back(t);
-        cout << "[+] Restocked " << units << " units of '" << m->getName() << "'.\n";
+ 
+    bool sell(int id,int u){
+        Medicine* m=find(id);
+        if(!m){cout<<"[-] ID "<<id<<" not found\n";return false;}
+        if(m->isExpired(today)){cout<<"[!] Cannot sell '"<<m->name<<"' — EXPIRED\n";return false;}
+        if(m->qty<u){cout<<"[!] Insufficient stock. Available: "<<m->qty<<"\n";return false;}
+        m->qty-=u; double rev=u*m->price;
+        Transaction t; t.medId=id; scopy(t.medName,m->name); scopy(t.type,"SALE");
+        t.units=u; t.amt=rev; t.date=today; scopy(t.note,"Sale");
+        txn[txnSz++]=t;
+        cout<<"[+] Sold "<<u<<" units of '"<<m->name<<"'. Revenue: Rs."; padDbl(rev,1); cout<<"\n";
+        if(m->isLowStock()) cout<<"[!] Low stock warning: '"<<m->name<<"' (reorder="<<m->reorder<<")\n";
         return true;
     }
-
-    // ── Sell ─────────────────────────────────
-    bool sell(int id, int units) {
-        Medicine* m = findById(id);
-        if (!m) { cout << "[-] Medicine ID " << id << " not found.\n"; return false; }
-        if (m->isExpired(today)) {
-            cout << "[!] Cannot sell '" << m->getName() << "' — it is EXPIRED.\n";
-            return false;
+ 
+    void disposeExpired(){
+        hdr("DISPOSE EXPIRED MEDICINES"); int c=0;
+        for(int i=0;i<invSz;i++) if(inv[i].isExpired(today)&&inv[i].qty>0){
+            cout<<"Disposing "<<inv[i].qty<<" units of '"<<inv[i].name<<"'\n";
+            Transaction t; t.medId=inv[i].id; scopy(t.medName,inv[i].name); scopy(t.type,"DISPOSAL");
+            t.units=inv[i].qty; t.amt=0; t.date=today; scopy(t.note,"Expired");
+            txn[txnSz++]=t; inv[i].qty=0; c++;
         }
-        if (m->getQuantity() < units) {
-            cout << "[!] Insufficient stock. Available: " << m->getQuantity() << "\n";
-            return false;
-        }
-        m->setQuantity(m->getQuantity() - units);
-        double revenue = units * m->getPrice();
-        Transaction t{id, m->getName(), "SALE", units, revenue, today, "Sale"};
-        transactions.push_back(t);
-        cout << "[+] Sold " << units << " units of '" << m->getName()
-             << "'. Revenue: ₹" << fixed << setprecision(2) << revenue << "\n";
-        if (m->isLowStock())
-            cout << "[!] WARNING: Stock for '" << m->getName()
-                 << "' is below reorder level (" << m->getReorderLevel() << ")!\n";
-        return true;
+        if(c==0) cout<<"  No expired stock to dispose\n";
+        else cout<<"[+] Disposed "<<c<<" batch(es)\n";
     }
-
-    // ── Dispose Expired ───────────────────────
-    void disposeExpired() {
-        printHeader("DISPOSE EXPIRED MEDICINES");
-        int count = 0;
-        for (auto& m : inventory) {
-            if (m.isExpired(today) && m.getQuantity() > 0) {
-                cout << "Disposing " << m.getQuantity()
-                     << " units of '" << m.getName()
-                     << "' (Expired: " << m.getExpiryDate().toString() << ")\n";
-                Transaction t{m.getId(), m.getName(), "DISPOSAL",
-                              m.getQuantity(), 0.0, today, "Expired"};
-                transactions.push_back(t);
-                m.setQuantity(0);
-                count++;
-            }
-        }
-        if (count == 0) cout << "No expired medicines to dispose.\n";
-        else cout << "[+] Disposed " << count << " expired medicine batch(es).\n";
-    }
-
-    // ── View All Inventory ────────────────────
+ 
     void viewInventory() const {
-        printHeader("FULL INVENTORY — " + pharmacyName);
-        printTableHeader();
-        if (inventory.empty()) { cout << "  (No medicines in inventory)\n"; return; }
-        for (const auto& m : inventory)
-            m.display(today);
+        hdr("FULL INVENTORY"); colHdr();
+        if(invSz==0){cout<<"  (empty)\n";return;}
+        for(int i=0;i<invSz;i++) inv[i].display(today);
     }
-
-    // ── Expiry Alerts ─────────────────────────
-    void expiryAlerts(int withinDays = 90) const {
-        printHeader("EXPIRY ALERTS (within " + to_string(withinDays) + " days)");
-        printTableHeader();
-        bool found = false;
-        // Sort a copy by expiry
-        vector<const Medicine*> ptrs;
-        for (const auto& m : inventory)
-            if (!m.isExpired(today) && m.daysToExpiry(today) <= withinDays)
-                ptrs.push_back(&m);
-        sort(ptrs.begin(), ptrs.end(), [](const Medicine* a, const Medicine* b){
-            return a->getExpiryDate() < b->getExpiryDate();
-        });
-        for (auto* m : ptrs) { m->display(today); found = true; }
-        if (!found) cout << "  No medicines expiring within " << withinDays << " days.\n";
+ 
+    void expiryAlerts(int days) const {
+        hdr("EXPIRY ALERTS"); colHdr();
+        // collect pointers, bubble sort by expiry
+        const Medicine* p[MAX]; int n=0;
+        for(int i=0;i<invSz;i++)
+            if(!inv[i].isExpired(today)&&inv[i].daysToExp(today)<=days) p[n++]=&inv[i];
+        for(int i=0;i<n-1;i++) for(int j=0;j<n-1-i;j++)
+            if(p[j+1]->expD<p[j]->expD){ const Medicine* tmp=p[j];p[j]=p[j+1];p[j+1]=tmp; }
+        if(n==0) cout<<"  No medicines expiring within "<<days<<" days\n";
+        else for(int i=0;i<n;i++) p[i]->display(today);
     }
-
-    // ── Expired List ──────────────────────────
+ 
     void viewExpired() const {
-        printHeader("EXPIRED MEDICINES");
-        printTableHeader();
-        bool found = false;
-        for (const auto& m : inventory)
-            if (m.isExpired(today)) { m.display(today); found = true; }
-        if (!found) cout << "  No expired medicines in inventory.\n";
+        hdr("EXPIRED MEDICINES"); colHdr(); bool f=false;
+        for(int i=0;i<invSz;i++) if(inv[i].isExpired(today)){inv[i].display(today);f=true;}
+        if(!f) cout<<"  No expired medicines\n";
     }
-
-    // ── Low Stock Report ──────────────────────
+ 
     void lowStockReport() const {
-        printHeader("LOW STOCK REPORT");
-        printTableHeader();
-        bool found = false;
-        for (const auto& m : inventory)
-            if (m.isLowStock()) { m.display(today); found = true; }
-        if (!found) cout << "  All medicines are adequately stocked.\n";
+        hdr("LOW STOCK REPORT"); colHdr(); bool f=false;
+        for(int i=0;i<invSz;i++) if(inv[i].isLowStock()){inv[i].display(today);f=true;}
+        if(!f) cout<<"  All medicines adequately stocked\n";
     }
-
-    // ── Search by Name ────────────────────────
-    void searchByName(const string& keyword) const {
-        printHeader("SEARCH RESULTS: \"" + keyword + "\"");
-        printTableHeader();
-        bool found = false;
-        for (const auto& m : inventory) {
-            string name = m.getName();
-            // Case-insensitive match
-            string lName = name, lKey = keyword;
-            transform(lName.begin(), lName.end(), lName.begin(), ::tolower);
-            transform(lKey.begin(), lKey.end(), lKey.begin(), ::tolower);
-            if (lName.find(lKey) != string::npos) {
-                m.display(today); found = true;
-            }
+ 
+    void searchByName(const char* kw) const {
+        hdr("SEARCH RESULTS"); colHdr(); bool f=false;
+        for(int i=0;i<invSz;i++) if(scontains(inv[i].name,kw)){inv[i].display(today);f=true;}
+        if(!f) cout<<"  No match found for '"<<kw<<"'\n";
+    }
+ 
+    void viewTxn() const {
+        hdr("TRANSACTION LOG");
+        pad("ID",6);pad("Medicine",22);pad("Type",12);pad("Units",7);pad("Amount",12);pad("Date",14);cout<<"Note\n";
+        for(int i=0;i<80;i++) cout<<'-'; cout<<"\n";
+        if(txnSz==0){cout<<"  No transactions recorded\n";return;}
+        for(int i=0;i<txnSz;i++){
+            padInt(txn[i].medId,6); pad(txn[i].medName,22); pad(txn[i].type,12);
+            padInt(txn[i].units,7); padDbl(txn[i].amt,12);
+            txn[i].date.print(); cout<<"  "<<txn[i].note<<"\n";
         }
-        if (!found) cout << "  No medicine found matching '" << keyword << "'.\n";
     }
-
-    // ── Transaction Log ───────────────────────
-    void viewTransactions() const {
-        printHeader("TRANSACTION LOG");
-        cout << left
-             << setw(6)  << "Med ID"
-             << setw(22) << "Medicine"
-             << setw(12) << "Type"
-             << setw(8)  << "Units"
-             << setw(12) << "Amount(₹)"
-             << setw(14) << "Date"
-             << "Note\n"
-             << string(90, '-') << "\n";
-        for (const auto& t : transactions) {
-            cout << left
-                 << setw(6)  << t.medicineId
-                 << setw(22) << t.medicineName
-                 << setw(12) << t.type
-                 << setw(8)  << t.units
-                 << setw(12) << fixed << setprecision(2) << t.amount
-                 << setw(14) << t.date.toString()
-                 << t.note << "\n";
-        }
-        if (transactions.empty()) cout << "  No transactions recorded.\n";
-    }
-
-    // ── Summary Dashboard ─────────────────────
+ 
     void dashboard() const {
-        printHeader("PHARMACY DASHBOARD — " + pharmacyName);
-        int total = inventory.size();
-        int expired = 0, expiringSoon = 0, lowStock = 0;
-        double totalVal = 0;
-        for (const auto& m : inventory) {
-            if (m.isExpired(today))                       expired++;
-            else if (m.daysToExpiry(today) <= 30)         expiringSoon++;
-            if (m.isLowStock())                           lowStock++;
-            totalVal += m.totalValue();
+        hdr("PHARMACY DASHBOARD"); int exp=0,soon=0,low=0; double val=0;
+        for(int i=0;i<invSz;i++){
+            if(inv[i].isExpired(today)) exp++;
+            else if(inv[i].daysToExp(today)<=30) soon++;
+            if(inv[i].isLowStock()) low++; val+=inv[i].totalVal();
         }
-        cout << "  Date              : " << today.toString()         << "\n";
-        cout << "  Total Medicines   : " << total                    << "\n";
-        cout << "  Expired           : " << expired                  << "\n";
-        cout << "  Expiring ≤30 days : " << expiringSoon             << "\n";
-        cout << "  Low Stock Items   : " << lowStock                 << "\n";
-        cout << "  Inventory Value   : ₹" << fixed << setprecision(2)
-             << totalVal                                             << "\n";
-        cout << "  Transactions      : " << transactions.size()      << "\n";
-        cout << string(90, '-') << "\n";
+        cout<<"  Date            : "; today.print(); cout<<"\n";
+        cout<<"  Total Medicines : "<<invSz<<"\n";
+        cout<<"  Expired         : "<<exp<<"\n";
+        cout<<"  Expiring <=30d  : "<<soon<<"\n";
+        cout<<"  Low Stock       : "<<low<<"\n";
+        cout<<"  Inventory Value : Rs."; padDbl(val,1); cout<<"\n";
+        cout<<"  Transactions    : "<<txnSz<<"\n";
+        for(int i=0;i<80;i++) cout<<'-'; cout<<"\n";
     }
 };
-
-// ─────────────────────────────────────────────
-//  Helper: Input Validation
-// ─────────────────────────────────────────────
-int getInt(const string& prompt) {
-    int val;
-    while (true) {
-        cout << prompt;
-        if (cin >> val) { cin.ignore(); return val; }
-        cout << "[!] Invalid input. Enter a number.\n";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    }
+ 
+// ── Input helpers ─────────────────────────────────────────────────────
+int getInt(const char* p){
+    int v; while(true){cout<<p; if(cin>>v){cin.ignore(1000,'\n');return v;}
+    cout<<"[!] Enter a number\n"; cin.clear(); cin.ignore(1000,'\n');}
 }
-
-double getDouble(const string& prompt) {
-    double val;
-    while (true) {
-        cout << prompt;
-        if (cin >> val) { cin.ignore(); return val; }
-        cout << "[!] Invalid input.\n";
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    }
+double getDbl(const char* p){
+    double v; while(true){cout<<p; if(cin>>v){cin.ignore(1000,'\n');return v;}
+    cout<<"[!] Enter a number\n"; cin.clear(); cin.ignore(1000,'\n');}
 }
-
-Date getDate(const string& prompt) {
-    int d, m, y;
-    cout << prompt << " (DD MM YYYY): ";
-    cin >> d >> m >> y;
-    cin.ignore();
-    return Date(d, m, y);
+Date getDate(const char* p){ int d,m,y; cout<<p<<" (DD MM YYYY): "; cin>>d>>m>>y; cin.ignore(1000,'\n'); return Date(d,m,y); }
+void getStr(const char* p, char* buf){
+    cout<<p;
+    int i=0; char c;
+    while(cin.get(c)&&c!='\n'&&i<SLEN-1) buf[i++]=c;
+    buf[i]='\0';
 }
-
-string getString(const string& prompt) {
-    string s;
-    cout << prompt;
-    getline(cin, s);
-    return s;
+ 
+// ── Sample data ───────────────────────────────────────────────────────
+void loadData(Pharmacy& p){
+    p.addMed(Medicine("Paracetamol 500mg", "Analgesic",    "Sun Pharma",  Date(1,1,2023),Date(1,6,2025), 200, 2.50,50));
+    p.addMed(Medicine("Amoxicillin 250mg", "Antibiotic",   "Cipla",       Date(1,3,2023),Date(1,3,2026), 150, 8.00,30));
+    p.addMed(Medicine("Cetirizine 10mg",   "Antihistamine","Abbott",      Date(1,6,2023),Date(1,9,2025),  80, 5.50,20));
+    p.addMed(Medicine("Vitamin C 500mg",   "Supplement",   "Himalaya",    Date(1,2,2024),Date(1,2,2027), 300, 3.00,60));
+    p.addMed(Medicine("Metformin 500mg",   "Antidiabetic", "Dr. Reddy's", Date(1,4,2023),Date(31,3,2025), 10, 6.00,25));
+    p.addMed(Medicine("Omeprazole 20mg",   "Antacid",      "Zydus",       Date(1,1,2022),Date(1,1,2025),  50, 4.50,15));
+    p.addMed(Medicine("Atorvastatin 10mg", "Cardiac",      "Lupin",       Date(1,5,2024),Date(1,5,2027), 120,12.00,25));
+    p.addMed(Medicine("Azithromycin 500mg","Antibiotic",   "Macleods",    Date(1,7,2023),Date(1,7,2026),  60,15.00,15));
 }
-
-// ─────────────────────────────────────────────
-//  Main Menu
-// ─────────────────────────────────────────────
-void showMenu() {
-    cout << "\n╔══════════════════════════════════════╗\n";
-    cout << "║   PHARMACY MANAGEMENT SYSTEM MENU   ║\n";
-    cout << "╠══════════════════════════════════════╣\n";
-    cout << "║  1. Dashboard                        ║\n";
-    cout << "║  2. View Full Inventory              ║\n";
-    cout << "║  3. Add New Medicine                 ║\n";
-    cout << "║  4. Restock Medicine                 ║\n";
-    cout << "║  5. Sell Medicine                    ║\n";
-    cout << "║  6. Expiry Alerts (90 days)          ║\n";
-    cout << "║  7. View Expired Medicines           ║\n";
-    cout << "║  8. Dispose Expired Medicines        ║\n";
-    cout << "║  9. Low Stock Report                 ║\n";
-    cout << "║ 10. Search Medicine by Name          ║\n";
-    cout << "║ 11. Transaction Log                  ║\n";
-    cout << "║  0. Exit                             ║\n";
-    cout << "╚══════════════════════════════════════╝\n";
-    cout << "Enter choice: ";
-}
-
-// ─────────────────────────────────────────────
-//  Sample Data Loader
-// ─────────────────────────────────────────────
-void loadSampleData(Pharmacy& p) {
-    // Format: name, category, manufacturer, mfgDate, expiryDate, qty, price, reorderLevel
-    p.addMedicine(Medicine("Paracetamol 500mg", "Analgesic",  "Sun Pharma",
-        Date(1,1,2023), Date(1,6,2025), 200, 2.50, 50));
-    p.addMedicine(Medicine("Amoxicillin 250mg", "Antibiotic", "Cipla",
-        Date(1,3,2023), Date(1,3,2026), 150, 8.00, 30));
-    p.addMedicine(Medicine("Cetirizine 10mg",   "Antihistamine","Abbott",
-        Date(1,6,2023), Date(1,9,2025), 80,  5.50, 20));
-    p.addMedicine(Medicine("Vitamin C 500mg",   "Supplement",  "Himalaya",
-        Date(1,2,2024), Date(1,2,2027), 300, 3.00, 60));
-    p.addMedicine(Medicine("Metformin 500mg",   "Antidiabetic","Dr. Reddy's",
-        Date(1,4,2023), Date(31,3,2025), 10,  6.00, 25)); // Low stock + near expiry
-    p.addMedicine(Medicine("Omeprazole 20mg",   "Antacid",    "Zydus",
-        Date(1,1,2022), Date(1,1,2025), 50,  4.50, 15)); // Already expired
-    p.addMedicine(Medicine("Atorvastatin 10mg", "Cardiac",    "Lupin",
-        Date(1,5,2024), Date(1,5,2027), 120, 12.00, 25));
-    p.addMedicine(Medicine("Azithromycin 500mg","Antibiotic", "Macleods",
-        Date(1,7,2023), Date(1,7,2026), 60,  15.00, 15));
-}
-
-// ─────────────────────────────────────────────
-//  Main
-// ─────────────────────────────────────────────
-int main() {
-    cout << "\n╔══════════════════════════════════════════════╗\n";
-    cout << "║   PHARMACY INVENTORY & EXPIRY MANAGEMENT    ║\n";
-    cout << "║            Case Study | C++                 ║\n";
-    cout << "╚══════════════════════════════════════════════╝\n";
-
-    // Today's date for demo: 15 March 2025
-    Date today(15, 3, 2025);
-    Pharmacy pharmacy("HealthPlus Pharmacy", today);
-
-    // Load sample medicines
-    loadSampleData(pharmacy);
-
-    int choice;
+ 
+// ── Main ──────────────────────────────────────────────────────────────
+int main(){
+    cout<<"╔══════════════════════════════════════════════╗\n"
+        <<"║   PHARMACY INVENTORY & EXPIRY MANAGEMENT     ║\n"
+        <<"║  Aayush Jadhav  |  Roll No: 150096725008     ║\n"
+        <<"╚══════════════════════════════════════════════╝\n";
+ 
+    Pharmacy ph("HealthPlus Pharmacy", Date(15,3,2025));
+    loadData(ph);
+ 
+    const char* menu[]={"Dashboard","View Full Inventory","Add Medicine","Restock",
+                        "Sell","Expiry Alerts (90d)","View Expired","Dispose Expired",
+                        "Low Stock Report","Search by Name","Transaction Log"};
+    int ch;
     do {
-        showMenu();
-        cin >> choice;
-        cin.ignore();
-
-        switch (choice) {
-        case 1:
-            pharmacy.dashboard();
-            break;
-        case 2:
-            pharmacy.viewInventory();
-            break;
-        case 3: {
-            string name     = getString("Medicine Name    : ");
-            string category = getString("Category         : ");
-            string mfr      = getString("Manufacturer     : ");
-            Date mfgDate    = getDate("Manufacture Date ");
-            Date expDate    = getDate("Expiry Date      ");
-            int qty         = getInt("Quantity         : ");
-            double price    = getDouble("Price per unit   : ");
-            int reorder     = getInt("Reorder Level    : ");
-            pharmacy.addMedicine(Medicine(name, category, mfr, mfgDate, expDate, qty, price, reorder));
-            break;
+        cout<<"\n╔══════════════════════════════╗\n║  PHARMACY MANAGEMENT MENU    ║\n╠══════════════════════════════╣\n";
+        for(int i=0;i<11;i++){
+            cout<<"║  "; if(i+1<10) cout<<' '; cout<<(i+1)<<". "; pad(menu[i],24); cout<<"║\n";
         }
-        case 4: {
-            int id    = getInt("Medicine ID to restock : ");
-            int units = getInt("Units to add           : ");
-            double cost = getDouble("Cost per unit        : ");
-            pharmacy.restock(id, units, cost);
-            break;
+        cout<<"║   0. "; pad("Exit",24); cout<<"║\n╚══════════════════════════════╝\nChoice: ";
+        cin>>ch; cin.ignore(1000,'\n');
+ 
+        char buf[SLEN];
+        switch(ch){
+        case  1: ph.dashboard();          break;
+        case  2: ph.viewInventory();      break;
+        case  3: {
+            char n[SLEN],c[SLEN],m[SLEN];
+            getStr("Name         : ",n); getStr("Category     : ",c); getStr("Manufacturer : ",m);
+            Date md=getDate("Mfg Date "), ed=getDate("Expiry Date ");
+            ph.addMed(Medicine(n,c,m,md,ed,getInt("Qty     : "),getDbl("Price   : "),getInt("Reorder : ")));
+            break; }
+        case  4: ph.restock(getInt("ID: "),getInt("Units: "),getDbl("Cost/unit: ")); break;
+        case  5: ph.sell(getInt("ID: "),getInt("Units: "));   break;
+        case  6: ph.expiryAlerts(90);     break;
+        case  7: ph.viewExpired();        break;
+        case  8: ph.disposeExpired();     break;
+        case  9: ph.lowStockReport();     break;
+        case 10: getStr("Keyword: ",buf); ph.searchByName(buf); break;
+        case 11: ph.viewTxn();            break;
+        case  0: cout<<"Exiting. Stay Healthy!\n"; break;
+        default: cout<<"[!] Invalid choice\n";
         }
-        case 5: {
-            int id    = getInt("Medicine ID to sell : ");
-            int units = getInt("Units to sell       : ");
-            pharmacy.sell(id, units);
-            break;
-        }
-        case 6:
-            pharmacy.expiryAlerts(90);
-            break;
-        case 7:
-            pharmacy.viewExpired();
-            break;
-        case 8:
-            pharmacy.disposeExpired();
-            break;
-        case 9:
-            pharmacy.lowStockReport();
-            break;
-        case 10: {
-            string kw = getString("Enter medicine name / keyword: ");
-            pharmacy.searchByName(kw);
-            break;
-        }
-        case 11:
-            pharmacy.viewTransactions();
-            break;
-        case 0:
-            cout << "\nExiting. Stay Healthy!\n";
-            break;
-        default:
-            cout << "[!] Invalid choice. Try again.\n";
-        }
-    } while (choice != 0);
-
-    return 0;
+    } while(ch!=0);
 }
+ 
