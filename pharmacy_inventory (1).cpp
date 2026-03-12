@@ -8,18 +8,17 @@ struct Medicine {
     int quantity;
     float price;
 
-    int expDay;
-    int expMonth;
-    int expYear;
+    int expDay, expMonth, expYear;
 };
 
-Medicine medicines[50];
+Medicine med[50];
 int countMed = 0;
 
 int todayDay, todayMonth, todayYear;
 
-bool isExpired(Medicine m) {
-
+// Check if medicine expired
+bool isExpired(Medicine m)
+{
     if(m.expYear < todayYear)
         return true;
 
@@ -32,103 +31,106 @@ bool isExpired(Medicine m) {
     return false;
 }
 
-void saveToFile() {
-
+// Save medicines to file
+void saveFile()
+{
     ofstream file("medicines.txt");
 
-    for(int i=0;i<countMed;i++) {
-
-        file << medicines[i].id << " "
-             << medicines[i].name << " "
-             << medicines[i].quantity << " "
-             << medicines[i].price << " "
-             << medicines[i].expDay << " "
-             << medicines[i].expMonth << " "
-             << medicines[i].expYear << endl;
+    for(int i=0;i<countMed;i++)
+    {
+        file << med[i].id << " "
+             << med[i].name << " "
+             << med[i].quantity << " "
+             << med[i].price << " "
+             << med[i].expDay << " "
+             << med[i].expMonth << " "
+             << med[i].expYear << endl;
     }
 
     file.close();
 }
 
-void loadFromFile() {
-
+// Load medicines from file
+void loadFile()
+{
     ifstream file("medicines.txt");
 
-    while(file >> medicines[countMed].id
-               >> medicines[countMed].name
-               >> medicines[countMed].quantity
-               >> medicines[countMed].price
-               >> medicines[countMed].expDay
-               >> medicines[countMed].expMonth
-               >> medicines[countMed].expYear) {
-
+    while(file >> med[countMed].id
+               >> med[countMed].name
+               >> med[countMed].quantity
+               >> med[countMed].price
+               >> med[countMed].expDay
+               >> med[countMed].expMonth
+               >> med[countMed].expYear)
+    {
         countMed++;
     }
 
     file.close();
 }
 
-void addMedicine() {
-
-    Medicine m;
-
-    cout << "Enter Medicine ID: ";
-    cin >> m.id;
+// Add medicine
+void addMedicine()
+{
+    cout << "\nEnter Medicine ID: ";
+    cin >> med[countMed].id;
 
     cout << "Enter Medicine Name: ";
-    cin >> m.name;
+    cin >> med[countMed].name;
 
     cout << "Enter Quantity: ";
-    cin >> m.quantity;
+    cin >> med[countMed].quantity;
 
     cout << "Enter Price: ";
-    cin >> m.price;
+    cin >> med[countMed].price;
 
     cout << "Enter Expiry Day: ";
-    cin >> m.expDay;
+    cin >> med[countMed].expDay;
 
     cout << "Enter Expiry Month: ";
-    cin >> m.expMonth;
+    cin >> med[countMed].expMonth;
 
     cout << "Enter Expiry Year: ";
-    cin >> m.expYear;
+    cin >> med[countMed].expYear;
 
-    medicines[countMed] = m;
     countMed++;
 
-    saveToFile();
+    saveFile();
 
     cout << "Medicine Added Successfully\n";
 }
 
-void viewMedicines() {
-
-    if(countMed == 0) {
+// View medicines
+void viewMedicines()
+{
+    if(countMed == 0)
+    {
         cout << "No medicines available\n";
         return;
     }
 
-    for(int i=0;i<countMed;i++) {
-
-        cout << "\nID: " << medicines[i].id;
-        cout << "\nName: " << medicines[i].name;
-        cout << "\nQuantity: " << medicines[i].quantity;
-        cout << "\nPrice: " << medicines[i].price;
+    for(int i=0;i<countMed;i++)
+    {
+        cout << "\nID: " << med[i].id;
+        cout << "\nName: " << med[i].name;
+        cout << "\nQuantity: " << med[i].quantity;
+        cout << "\nPrice: " << med[i].price;
 
         cout << "\nExpiry: "
-             << medicines[i].expDay << "/"
-             << medicines[i].expMonth << "/"
-             << medicines[i].expYear;
+             << med[i].expDay << "/"
+             << med[i].expMonth << "/"
+             << med[i].expYear;
 
-        if(isExpired(medicines[i]))
-            cout << "  --> EXPIRED";
+        if(isExpired(med[i]))
+            cout << "  -> EXPIRED";
 
-        cout << "\n-----------------------\n";
+        cout << "\n------------------\n";
     }
 }
 
-void sellMedicine() {
-
+// Sell medicine
+void sellMedicine()
+{
     int id, qty;
 
     cout << "Enter Medicine ID: ";
@@ -137,23 +139,26 @@ void sellMedicine() {
     cout << "Enter Quantity to sell: ";
     cin >> qty;
 
-    for(int i=0;i<countMed;i++) {
-
-        if(medicines[i].id == id) {
-
-            if(isExpired(medicines[i])) {
-                cout << "Cannot sell. Medicine is EXPIRED\n";
+    for(int i=0;i<countMed;i++)
+    {
+        if(med[i].id == id)
+        {
+            if(isExpired(med[i]))
+            {
+                cout << "Cannot sell. Medicine expired\n";
                 return;
             }
 
-            if(medicines[i].quantity >= qty) {
+            if(med[i].quantity >= qty)
+            {
+                med[i].quantity -= qty;
 
-                medicines[i].quantity -= qty;
-                saveToFile();
+                saveFile();
 
-                cout << "Medicine sold successfully\n";
-
-            } else {
+                cout << "Medicine Sold Successfully\n";
+            }
+            else
+            {
                 cout << "Not enough stock\n";
             }
 
@@ -164,9 +169,9 @@ void sellMedicine() {
     cout << "Medicine not found\n";
 }
 
-int main() {
-
-    loadFromFile();
+int main()
+{
+    loadFile();
 
     cout << "Enter Today's Date\n";
     cout << "Day: ";
@@ -180,19 +185,19 @@ int main() {
 
     int choice;
 
-    do {
+    do
+    {
+        cout << "\n--- PHARMACY SYSTEM ---\n";
+        cout << "1. Add Medicine\n";
+        cout << "2. View Medicines\n";
+        cout << "3. Sell Medicine\n";
+        cout << "0. Exit\n";
 
-        cout << "\nPHARMACY SYSTEM\n";
-        cout << "1 Add Medicine\n";
-        cout << "2 View Medicines\n";
-        cout << "3 Sell Medicine\n";
-        cout << "0 Exit\n";
-
-        cout << "Enter choice: ";
+        cout << "Enter Choice: ";
         cin >> choice;
 
-        switch(choice) {
-
+        switch(choice)
+        {
             case 1:
                 addMedicine();
                 break;
@@ -206,7 +211,7 @@ int main() {
                 break;
 
             case 0:
-                cout << "Exiting program\n";
+                cout << "Exiting...\n";
                 break;
 
             default:
