@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 struct Medicine {
@@ -31,6 +32,42 @@ bool isExpired(Medicine m) {
     return false;
 }
 
+void saveToFile() {
+
+    ofstream file("medicines.txt");
+
+    for(int i=0;i<countMed;i++) {
+
+        file << medicines[i].id << " "
+             << medicines[i].name << " "
+             << medicines[i].quantity << " "
+             << medicines[i].price << " "
+             << medicines[i].expDay << " "
+             << medicines[i].expMonth << " "
+             << medicines[i].expYear << endl;
+    }
+
+    file.close();
+}
+
+void loadFromFile() {
+
+    ifstream file("medicines.txt");
+
+    while(file >> medicines[countMed].id
+               >> medicines[countMed].name
+               >> medicines[countMed].quantity
+               >> medicines[countMed].price
+               >> medicines[countMed].expDay
+               >> medicines[countMed].expMonth
+               >> medicines[countMed].expYear) {
+
+        countMed++;
+    }
+
+    file.close();
+}
+
 void addMedicine() {
 
     Medicine m;
@@ -58,6 +95,8 @@ void addMedicine() {
 
     medicines[countMed] = m;
     countMed++;
+
+    saveToFile();
 
     cout << "Medicine Added Successfully\n";
 }
@@ -110,6 +149,8 @@ void sellMedicine() {
             if(medicines[i].quantity >= qty) {
 
                 medicines[i].quantity -= qty;
+                saveToFile();
+
                 cout << "Medicine sold successfully\n";
 
             } else {
@@ -124,6 +165,8 @@ void sellMedicine() {
 }
 
 int main() {
+
+    loadFromFile();
 
     cout << "Enter Today's Date\n";
     cout << "Day: ";
